@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
-import random
 
 class PointsConverter(ABC):
     @abstractmethod
-    def obtainPoint(self, value:float) -> int:
+    def obtain_point(self, value:float) -> int:
         pass
     
 class FemalePointsConverter(PointsConverter):
-    def obtainPoint(self, value:float):
+    def obtain_point(self, value:float):
         if value <= 0.25:
             return 10
         elif value <= 0.65:
@@ -18,7 +17,7 @@ class FemalePointsConverter(PointsConverter):
             return 0
         
 class MalePointsConverter(PointsConverter):
-    def obtainPoint(self, value):
+    def obtain_point(self, value):
         if value <= 0.15:
             return 10
         elif value <= 0.45:
