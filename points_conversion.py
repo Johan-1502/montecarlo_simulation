@@ -26,3 +26,12 @@ class MalePointsConverter(PointsConverter):
             return 8
         else:
             return 0
+        
+class SubstractResistanceConverter(PointsConverter):
+    def obtain_point(self, value):
+        if value <= 0.33:
+            return 1
+        elif value <= 0.66:
+            return 2
+        else:
+            return 3
