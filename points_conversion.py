@@ -1,4 +1,9 @@
 from abc import ABC, abstractmethod
+from enum import Enum
+
+class Gender(Enum):
+    MALE = "masculino"
+    FEMALE = "femenino"
 
 class PointsConverter(ABC):
     @abstractmethod
@@ -35,3 +40,10 @@ class SubstractResistanceConverter(PointsConverter):
             return 2
         else:
             return 3
+        
+
+def obtain_gender(value):
+    if value <= 0.5:
+        return Gender.FEMALE
+    else:
+        return Gender.MALE

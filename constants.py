@@ -8,3 +8,6 @@ ROUNDS_WON = "rondas ganadas"
 LUCK = "suerte"
 EXPERIENCE = "experiencia"
 GENDER = "genero"
+QUANTITY_OF_TEAMS= 2
+QUANTITY_OF_ARCHERS_BY_TEAM = 5
+QUANTITY_OF_GAMES = 20000

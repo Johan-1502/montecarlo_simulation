@@ -1,23 +1,46 @@
-from simulation import Team, Archer, Gender, Round
-from points_conversion import MalePointsConverter, FemalePointsConverter
+from simulation import Team, Archer, Round, Game, Tournament
+from points_conversion import MalePointsConverter, FemalePointsConverter,Gender, obtain_gender
 import constants
+from random_values import uniform_value, norm_random_value, random_value
+import time
+from datetime import timedelta
+
 
 class RoundTest:
     def test():    
         teams = []
 
-        team_1 = Team("Team 1")
-        team_1.add_archer(Archer("Archer 1",team_1.name, 27, 1.09, Gender.MALE, MalePointsConverter()))
-        team_1.add_archer(Archer("Archer 2",team_1.name, 37, 1.19, Gender.FEMALE, FemalePointsConverter()))
-        teams.append(team_1)
+        for i in range(constants.QUANTITY_OF_TEAMS):    
+            team = Team(f"Team {(i+1)}")
+            for j in range(constants.QUANTITY_OF_ARCHERS_BY_TEAM):    
+                gender = obtain_gender(random_value())
+                points_converter = None
+                if gender == Gender.MALE:
+                    points_converter = MalePointsConverter()
+                else:
+                    points_converter = FemalePointsConverter()
+                team.add_archer(Archer(f"Archer {(j+1)}",team.name, uniform_value(), norm_random_value(), gender, points_converter))
+            teams.append(team)
 
-        team_2 = Team("Team 2")
-        team_2.add_archer(Archer("Archer 3",team_2.name, 32, 1.8, Gender.MALE, MalePointsConverter()))
-        team_2.add_archer(Archer("Archer 4",team_2.name, 39, 1.29, Gender.FEMALE, FemalePointsConverter()))
-        teams.append(team_2)
+        print("Ejecución iniciada")
+        start_time = time.time()
+        for i in range(constants.QUANTITY_OF_GAMES):
+            porcentaje = (i + 1) / constants.QUANTITY_OF_GAMES * 100
+            print(f"\rProgreso: {porcentaje:.1f}% ({i + 1}/{constants.QUANTITY_OF_GAMES})", end="", flush=True)
+            game = Game(i)
+            game.execute(teams)
+        
+        end_time = time.time()
+        execution_time = end_time - start_time
+        tiempo_formateado = str(timedelta(seconds=execution_time))
+        print(f"\nTiempo de ejecución: {tiempo_formateado}")
+        print("Ejecución terminada")
+        
+    def execute_tournament():
+        tournament = Tournament()
+        tournament.execute()
 
-        round = Round(1, 1)
-        round.execute(teams)
+RoundTest.execute_tournament()
 
 #var = []
 #var.append({constants.NAME_ATRIBUTE:"Johan", constants.EXPERIENCE:10})
@@ -25,7 +48,6 @@ class RoundTest:
 #
 #print(var[0][constants.NAME_ATRIBUTE])
 #
-#RoundTest.test()
 #Test de un conjunto con set()
 
 #class Person:
