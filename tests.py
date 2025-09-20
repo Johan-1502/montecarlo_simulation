@@ -5,6 +5,13 @@ from random_values import uniform_value, norm_random_value, random_value
 import time
 from datetime import timedelta
 
+array = []
+
+def add_value():
+    array.append(1)
+        
+def value():
+    return array.pop()
 
 class RoundTest:
     def test():    
@@ -40,7 +47,6 @@ class RoundTest:
         tournament = Tournament()
         tournament.execute()
 
-RoundTest.execute_tournament()
 
 #var = []
 #var.append({constants.NAME_ATRIBUTE:"Johan", constants.EXPERIENCE:10})

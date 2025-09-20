@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 class Gender(Enum):
-    MALE = "masculino"
-    FEMALE = "femenino"
+    MALE = "Masculino"
+    FEMALE = "Femenino"
 
 class PointsConverter(ABC):
     @abstractmethod

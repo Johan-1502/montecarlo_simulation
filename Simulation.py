@@ -10,8 +10,6 @@ from score import Puntuation, PuntuationTeam
 import constants
 import math
 from random_values import random_value, norm_random_value, uniform_value
-import time
-from datetime import timedelta
 
 
 class Archer:
@@ -37,6 +35,17 @@ class Archer:
         self.quantity_luckiest_games = 0
         self.quantity_experienced_games = 0
         self.puntuations = []
+        self.round_points = []
+        self.acumulation_points = []
+
+    def add_puntuation_round(self, id: int, points: int):
+        if len(self.round_points) > 0:
+            for round in self.round_points:
+                if round["id"] == id:
+                    round["points"] += points
+        else:
+
+            self.round_points.append({"id": id, "points": points})
 
     def execute_normal_shot(self, value: float, game: int, round: int) -> int:
         points = self.__add_points(value, game, round)
@@ -48,10 +57,20 @@ class Archer:
 
     def __add_points(self, value: float, game: int, round: int):
         point = self.points_converter.obtain_point(value)
+        self.add_puntuation_round(round, point)
         puntuation = Puntuation(len(self.puntuations), game, round, point)
         self.puntuations.append(puntuation)
         self.total_points += puntuation.points
         return point
+
+    def acumulate_points(self):
+        if len(self.acumulation_points) > 0:
+            last_position = len(self.acumulation_points) - 1
+            self.acumulation_points.append(
+                self.acumulation_points[last_position] + self.total_points
+            )
+        else:
+            self.acumulation_points.append(self.total_points)
 
     def execute_special_shot(self, value: float) -> int:
         point = self.points_converter.obtain_point(value)
@@ -95,6 +114,7 @@ class Archer:
     def add_experienced_game(self):
         self.quantity_experienced_games += 1
 
+
 class Team:
     def __init__(self, name: str):
         self.name = name
@@ -103,10 +123,23 @@ class Team:
         self.total_special_shots = 0
         self.puntuations: list[PuntuationTeam] = []
         self.special_archer = None
-        self.quantity_rounds_won = 0
+        self.quantity_games_won = 0
+        self.points_by_round = []
+        self.special_shots_by_game = []
+        self.experience_by_game = []
+        self.repeated_special_archer = 0
 
     def add_archer(self, archer: Archer):
         self.archers.append(archer)
+
+    def add_special_shot_game(self, game: int):
+        if (game) > (len(self.special_shots_by_game) - 1):
+            self.special_shots_by_game.append(1)
+        else:
+            self.special_shots_by_game[game] += 1
+
+    def add_experience_game(self):
+        self.experience_by_game.append(self.__total_experience_gained())
 
     def add_puntuation(
         self,
@@ -123,6 +156,7 @@ class Team:
                 self.total_special_shots,
             )
         )
+        self.points_by_round.append(self.total_points)
 
     def add_points(self, points: int):
         self.total_points += points
@@ -177,11 +211,14 @@ class Team:
 
     def reset_values(self):
         self.total_points = 0
+
+    def reset_game_values(self):
+        self.total_points = 0
         self.total_special_shots = 0
         self.special_archer = None
-        
-    def add_round_won(self):
-        self.quantity_rounds_won += 1
+
+    def add_game_won(self):
+        self.quantity_games_won += 1
 
 
 class Round:
@@ -284,11 +321,15 @@ class Round:
             team = self.searchTeam(archer.team, teams)
             self.validate_additional_shot(team, archer, round)
             team.add_special_shot()
+            team.add_special_shot_game(self.game_id)
             team.add_points(points)
 
     def validate_additional_shot(self, team: Team, archer: Archer, round: int):
         if team.special_archer:
+            # print(f"{team.special_archer.name}:{archer.name}")
             if team.special_archer.name == archer.name:
+                # print("Jugador especial repetido")
+                team.repeated_special_archer += 1
                 additional_point = archer.execute_additional_shot(
                     random_value(), self.id, round
                 )
@@ -331,6 +372,8 @@ class Round:
 
     def define_winning_team(self, teams: list[Team]):
         for team in teams:
+            for archer in team.archers:
+                archer.acumulate_points()
             if self.best_team:
                 if team.total_points > self.best_team[constants.PUNTUATION_ATRIBUTE]:
                     self.isATiedRound = False
@@ -380,6 +423,8 @@ class Game:
         self.male_wins = 0
         self.female_wins = 0
         self.quantity_of_tied_rounds = 0
+        self.female_experience_by_round = []
+        self.male_experience_by_round = []
 
     def execute(self, teams: list[Team]):
         self.execute_rounds(teams)
@@ -389,6 +434,7 @@ class Game:
             round = Round(i, self.id)
             self.rounds.append(round)
             round.execute(teams)
+        self.experience_by_gender(teams)
         self.define_winner_team(teams)
         self.define_winner_archer()
         self.define_luckiest_archer(teams)
@@ -429,19 +475,20 @@ class Game:
         print(f"Victorias masculinas: {self.male_wins}")
         print(f"Cantidad de rondas empatadas: {self.quantity_of_tied_rounds}")
 
-    def define_winner_team(self, teams:list[Team]):
+    def define_winner_team(self, teams: list[Team]):
         best_teams = self.count_victories_by_team()
         self.bestTeam = self.define_winner(best_teams, constants.ROUNDS_WON)
         if self.bestTeam:
-            self.search_team(teams, self.bestTeam[constants.NAME_ATRIBUTE]).add_round_won()
+            self.search_team(
+                teams, self.bestTeam[constants.NAME_ATRIBUTE]
+            ).add_game_won()
         # if not self.bestTeam:
         #    print(f"Empate de equipos en el juego {self.id}")
 
-    def search_team(self, teams:list[Team], team_name) -> Team:
+    def search_team(self, teams: list[Team], team_name) -> Team:
         for team in teams:
             if team.name == team_name:
                 return team
-    
 
     def count_victories_by_team(self):
         list = []
@@ -528,7 +575,9 @@ class Game:
 
     def increase_experienced_count(self, teams: list[Team]):
         for archer in self.the_most_experienced_archers:
-            self.search_archer(teams, archer[constants.NAME_ATRIBUTE]).add_experienced_game()
+            self.search_archer(
+                teams, archer[constants.NAME_ATRIBUTE]
+            ).add_experienced_game()
 
     def compare_experience(
         self, experience_gained: int, archer: Archer, most_experienced_archers: list
@@ -580,9 +629,38 @@ class Game:
 
     def reset_values(self, teams: list[Team]):
         for team in teams:
+            team.add_experience_game()
             for archer in team.archers:
                 archer.reset_values(norm_random_value(), uniform_value())
-            team.reset_values()
+            team.reset_game_values()
+
+    def experience_by_gender(self, teams: list[Team]):
+        female_exp = 0
+        male_exp = 0
+        for team in teams:
+            for archer in team.archers:
+                if archer.gender == Gender.MALE:
+                    male_exp += archer.experience_gained()
+                else:
+                    female_exp += archer.experience_gained()
+        self.acumulate_value(self.female_experience_by_round, female_exp)
+        self.acumulate_value(self.male_experience_by_round, male_exp)
+
+    def acumulate_value(self, values:list, value_to_acumulate:int):
+        size = len(values)
+        if size>0:
+            values.append((values[size-1]+value_to_acumulate))
+        else:
+            values.append(value_to_acumulate)
+
+    def acumulate_values(self, values:list, values_to_acumulate:list):
+        size = len(values)
+        for value in values_to_acumulate:
+            self.acumulate_value(values, value)
+    
+    def acumulate_experience_by_gender(self,female_experience_by_round:list, male_experience_by_round:list, teams: list[Team]):
+        self.acumulate_values(female_experience_by_round, self.female_experience_by_round)
+        self.acumulate_values(male_experience_by_round, self.male_experience_by_round)
 
 
 class Tournament:
@@ -594,6 +672,9 @@ class Tournament:
         self.female_wins = 0
         self.male_wins = 0
         self.tied_rounds = 0
+        self.games: list[Game] = []
+        self.female_experience_by_round = []
+        self.male_experience_by_round = []
 
     def execute(self):
         self.__assign_team_values()
@@ -601,20 +682,27 @@ class Tournament:
         self.__define_luckiest_archer()
         self.__define_most_experienced_archer()
         self.__define_best_team()
-        
-        tied_rounds_frequency = self.tied_rounds/(constants.QUANTITY_OF_ROUNDS*constants.QUANTITY_OF_GAMES)*100
-        print("\nResultados torneo:\n"+
-              f"Jugador más afortunado: {self.luckiest_archer.name} con {self.luckiest_archer.quantity_luckiest_games} rondas como el más afortunado\n"+
-              f"Jugador más experimentado: {self.the_most_experienced_archer.name} con {self.the_most_experienced_archer.quantity_experienced_games} rondas como el que más experiencia ganó\n"+
-              f"Mejor equipo: {self.best_team.name} con {self.best_team.quantity_rounds_won} rondas ganadas\n"+
-              f"Cantidad de rondas ganadas por el género femenino: {self.female_wins} rondas\n"+
-              f"Cantidad de rondas ganadas por el género másculino: {self.male_wins} rondas\n"+
-              f"Cantidad de rondas empatadas: {self.tied_rounds} rondas\n"+
-              f"Frecuencia relativa de rondas empatadas: {tied_rounds_frequency:.2f}%\n")
-        
+
+        self.tied_rounds_frequency = (
+            self.tied_rounds
+            / (constants.QUANTITY_OF_ROUNDS * constants.QUANTITY_OF_GAMES)
+            * 100
+        )
+        print(
+            "\nResultados torneo:\n"
+            + f"Jugador más afortunado: {self.luckiest_archer.name} con {self.luckiest_archer.quantity_luckiest_games} rondas como el más afortunado\n"
+            + f"Jugador más experimentado: {self.the_most_experienced_archer.name} con {self.the_most_experienced_archer.quantity_experienced_games} rondas como el que más experiencia ganó\n"
+            + f"Mejor equipo: {self.best_team.name} con {self.best_team.quantity_games_won} rondas ganadas\n"
+            + f"Cantidad de rondas ganadas por el género femenino: {self.female_wins} rondas\n"
+            + f"Cantidad de rondas ganadas por el género másculino: {self.male_wins} rondas\n"
+            + f"Cantidad de rondas empatadas: {self.tied_rounds} rondas\n"
+            + f"Frecuencia relativa de rondas empatadas: {self.tied_rounds_frequency:.2f}%\n"
+        )
+
     def __assign_team_values(self):
+        number_archers = 1
         for i in range(constants.QUANTITY_OF_TEAMS):
-            team = Team(f"Team {(i+1)}")
+            team = Team(f"Equipo {(i+1)}")
             for j in range(constants.QUANTITY_OF_ARCHERS_BY_TEAM):
                 gender = obtain_gender(random_value())
                 points_converter = None
@@ -624,7 +712,7 @@ class Tournament:
                     points_converter = FemalePointsConverter()
                 team.add_archer(
                     Archer(
-                        f"Archer {(j+1)}",
+                        f"Arquero {(number_archers)}",
                         team.name,
                         uniform_value(),
                         norm_random_value(),
@@ -632,11 +720,10 @@ class Tournament:
                         points_converter,
                     )
                 )
+                number_archers += 1
             self.teams.append(team)
-    
-    def __execute_games(self): 
-        print("Ejecución iniciada")
-        start_time = time.time()
+
+    def __execute_games(self):
         for i in range(constants.QUANTITY_OF_GAMES):
             porcentaje = (i + 1) / constants.QUANTITY_OF_GAMES * 100
             print(
@@ -645,40 +732,69 @@ class Tournament:
                 flush=True,
             )
             game = Game(i)
+            self.games.append(game)
             game.execute(self.teams)
-            self.female_wins += game.female_wins 
-            self.male_wins += game.male_wins 
+            game.acumulate_experience_by_gender(
+                self.female_experience_by_round, self.male_experience_by_round, self.teams
+            )
+            self.female_wins += game.female_wins
+            self.male_wins += game.male_wins
             self.tied_rounds += game.quantity_of_tied_rounds
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(execution_time)
-        tiempo_formateado = str(timedelta(seconds=execution_time))
-        print(f"\nTiempo de ejecución: {tiempo_formateado}")
-        print(f"\nSe procesaron en promedio {math.trunc(constants.QUANTITY_OF_GAMES/execution_time)} juegos por segundo es decir {math.trunc(constants.QUANTITY_OF_GAMES/execution_time)*constants.QUANTITY_OF_ROUNDS} rondas por segundo")
-        print("Ejecución terminada")
-        
+
     def __define_luckiest_archer(self):
         for team in self.teams:
             for archer in team.archers:
                 if self.luckiest_archer:
-                    if archer.quantity_luckiest_games > self.luckiest_archer.quantity_luckiest_games:
+                    if (
+                        archer.quantity_luckiest_games
+                        > self.luckiest_archer.quantity_luckiest_games
+                    ):
                         self.luckiest_archer = archer
                 else:
                     self.luckiest_archer = archer
-                    
+
     def __define_most_experienced_archer(self):
         for team in self.teams:
             for archer in team.archers:
                 if self.the_most_experienced_archer:
-                    if archer.quantity_experienced_games > self.luckiest_archer.quantity_experienced_games:
+                    if (
+                        archer.quantity_experienced_games
+                        > self.luckiest_archer.quantity_experienced_games
+                    ):
                         self.the_most_experienced_archer = archer
                 else:
                     self.the_most_experienced_archer = archer
-        
+
     def __define_best_team(self):
         for team in self.teams:
             if self.best_team:
-                if team.quantity_rounds_won > self.best_team.quantity_rounds_won:
+                if team.quantity_games_won > self.best_team.quantity_games_won:
                     self.best_team = team
             else:
                 self.best_team = team
+
+    def winning_genre(self):
+        if self.male_wins > self.female_wins:
+            return Gender.MALE.value
+        else:
+            return Gender.FEMALE.value
+
+    def points_by_archer(self):
+        points_archers = {}
+        for team in self.teams:
+            for archer in team.archers:
+                points_archers.update({archer.name: archer.acumulation_points})
+        return points_archers
+
+    def points_by_team(self) -> dict:
+        points_team = {}
+        for team in self.teams:
+            points_team.update({team.name: team.points_by_round})
+        return points_team
+
+    def experience_by_gender(self):
+        experience = {
+            "Masculino": self.male_experience_by_round,
+            "Femenino": self.female_experience_by_round,
+        }
+        return experience
