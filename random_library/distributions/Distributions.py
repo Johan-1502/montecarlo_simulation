@@ -1,5 +1,5 @@
 
-from random_numbers_library.generators.Congruences import LinealCongruence
+from random_library.generators.Congruences import LinealCongruence
 import math
 
 class UniformDistribution:
