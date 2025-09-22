@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 from PyQt5.QtCore import Qt
-from simulation import Tournament
+from tournament_simulation import Tournament
 import constants
 import time
 from datetime import timedelta
