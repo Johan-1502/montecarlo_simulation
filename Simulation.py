@@ -8,11 +8,36 @@ from points_conversion import (
 )
 from score import Puntuation, PuntuationTeam
 import constants
-import math
-from random_values import random_value, norm_random_value, uniform_value
+from random_values import Values
 
+"""
+Módulo principal de simulación de torneo de arquería.
+
+Contiene las clases y lógica para modelar arqueros, equipos, rondas, juegos y el torneo completo,
+incluyendo la conversión de puntos, manejo de experiencia, suerte, resistencia y estadísticas globales.
+"""
 
 class Archer:
+    """
+    Representa un arquero participante en el torneo.
+    
+    Attributes:
+        name (str): Nombre del arquero.
+        team (str): Nombre del equipo al que pertenece.
+        initial_experience (int): Experiencia inicial.
+        luck (float): Valor de suerte del arquero.
+        gender (Gender): Género del arquero.
+        points_converter (PointsConverter): Conversor de puntos según género.
+        current_resistance (int): Resistencia actual durante el juego.
+        current_experience (int): Experiencia actual durante el juego.
+        total_points (int): Puntos totales acumulados.
+        used_resistance (int): Resistencia utilizada.
+        quantity_luckiest_games (int): Veces que fue el más afortunado.
+        quantity_experienced_games (int): Veces que fue el más experimentado.
+        puntuations (list): Lista de puntuaciones por tiro.
+        round_points (list): Puntos por ronda.
+        acumulation_points (list): Puntos acumulados por ronda.
+    """
     def __init__(
         self,
         name: str,
@@ -22,11 +47,22 @@ class Archer:
         gender: Gender,
         points_converter: PointsConverter,
     ):
+        """
+        Inicializa un arquero
+        
+        Args:
+            name (str): Nombre del arquero.
+            team (str): Nombre del equipo al que pertenece.
+            initial_experience (int): Experiencia inicial.
+            luck (float): Valor de suerte del arquero.
+            gender (Gender): Género del arquero.
+            points_converter (PointsConverter): Conversor de puntos según género.
+        """
         self.name = name
         self.team = team
-        self.initial_experience = constants.INITIAL_EXPERIENCE
         self.luck = luck
         self.gender = gender
+        self.initial_experience = constants.INITIAL_EXPERIENCE
         self.points_converter = points_converter
         self.current_resistance = initial_resistance
         self.current_experience = self.initial_experience
@@ -39,6 +75,13 @@ class Archer:
         self.acumulation_points = []
 
     def add_puntuation_round(self, id: int, points: int):
+        """
+        Suma los puntos a la ornda corresondiente, de no existir crea la ronda
+        
+        args:
+            id (int): identificar de la ronda
+            points (int): cantidad de puntos a sumar a la ronda
+        """
         if len(self.round_points) > 0:
             for round in self.round_points:
                 if round["id"] == id:
@@ -48,14 +91,47 @@ class Archer:
             self.round_points.append({"id": id, "points": points})
 
     def execute_normal_shot(self, value: float, game: int, round: int) -> int:
+        """
+        Ejecuta un tiro normal el cual sí afecta a la resistencia del arquero
+        
+        Args:
+            value (float): valor aleatorio generado para conocer su puntuación
+            game (int): identificador del juego en que se realizó el tiro
+            round (int): identificador de la ronda en que se realizó el tiro
+            
+        Returns:
+            int: puntuación obtenida a partir de value
+        """
         points = self.__add_points(value, game, round)
         self.decrease_resistence(constants.RESISTANCE_CONSUMPTION)
         return points
 
     def execute_additional_shot(self, value: float, game: int, round: int) -> int:
+        """
+        Ejecuta un tiro adicional el cual no afecta a la resistencia del arquero
+        
+        Args:
+            value (float): valor aleatorio generado para conocer su puntuación
+            game (int): identificador del juego en que se realizó el tiro
+            round (int): identificador de la ronda en que se realizó el tiro
+            
+        Returns:
+            int: puntuación obtenida a partir de value
+        """
         return self.__add_points(value, game, round)
 
-    def __add_points(self, value: float, game: int, round: int):
+    def __add_points(self, value: float, game: int, round: int) -> int:
+        """
+        Agrega los puntos obtenidos al jugador a partir de value
+        
+        Args:
+            value (float): valor aleatorio generado para conocer su puntuación
+            game (int): identificador del juego en que se realizó el tiro
+            round (int): identificador de la ronda en que se realizó el tiro
+            
+        Returns:
+            int: puntuación obtenida a partir de value
+        """
         point = self.points_converter.obtain_point(value)
         self.add_puntuation_round(round, point)
         puntuation = Puntuation(len(self.puntuations), game, round, point)
@@ -64,6 +140,9 @@ class Archer:
         return point
 
     def acumulate_points(self):
+        """
+        Acumula los puntos obtenidos sumando los de la última ronda con el total de los que tiene en la ronda actual
+        """
         if len(self.acumulation_points) > 0:
             last_position = len(self.acumulation_points) - 1
             self.acumulation_points.append(
@@ -73,35 +152,85 @@ class Archer:
             self.acumulation_points.append(self.total_points)
 
     def execute_special_shot(self, value: float) -> int:
+        """
+        Ejecuta un tiro especial obtenido al ser el más afortunado de la ronda, el cual no afecta a la resistencia del arquero y tampoco computa para la cantidad total de puntos
+        
+        Args:
+            value (float): valor aleatorio generado para conocer su puntuación
+            
+        Returns:
+            int: puntuación obtenida a partir de value
+        """
         point = self.points_converter.obtain_point(value)
         return point
 
     def decrease_resistence(self, unitsToRemove: int):
+        """
+        Disminuye la resistencia del arquero
+        
+        Args:
+            unitsToRemove (int): cantidad de resistecia a restar
+        """
         self.current_resistance -= unitsToRemove
         self.used_resistance += unitsToRemove
 
     def can_continue(self) -> bool:
+        """
+        Define si el arquero puede continuar realizando lanzamientos a partir de comparar la resistencia actual con el valor de constants.RESISTANCE_CONSUMPTION
+            
+        Returns:
+            bool: Si la resistencia actual es mayor retorna True, de lo contrario retorna False
+        """
         return self.current_resistance >= constants.RESISTANCE_CONSUMPTION
 
     def add_experience(self, experience: int):
+        """
+        Agrega experiencia al arquero
+        
+        Args:
+            experience (int): Cantidad de experiencia a agregar
+        """
         self.current_experience += experience
 
     def restore_resistence(self, less_units: int):
-        initial_resisteance = self.current_resistance
+        """
+        Restaura la resistencia gastada del arquero menos la cantidad definida
+        
+        Args:
+            less_units (int): cantidad de resistencia menos para restaurar
+        """
         self.current_resistance += self.used_resistance - less_units
         self.used_resistance = 0
 
     def experience_gained(self) -> int:
-        # print(f"experiencia del jugador {self.name}: {self.current_experience}")
+        """
+        Resistencia obtenida hasta el momento del juego
+            
+        Returns:
+            int: diferencia de la resistencia inicial a la resistencia actual
+        """
         return self.current_experience - self.initial_experience
 
     def reset_round_values(self, less_units: int, luck_value: float):
+        """
+        Resetea los valores del jugador correspondientes a una ronda
+        
+        Args:
+            less_units (int): cantidad de resistencia menos para restaurar
+            luck_value (float): nuevo valor de suerte para la próxima ronda
+        """
         self.restore_resistence(less_units)
         self.luck = luck_value
         self.total_points = 0
 
     def reset_values(self, luck: float, resistance: int):
-        self.initial_experience = constants.INITIAL_EXPERIENCE
+        """
+        Resetea los valores del jugador correspondientes a un juego
+        
+        Args:
+            luck (float): nuevo valor de suerte
+            resistance (int): nuevo valor de resitencia para el juego
+        """
         self.luck = luck
         self.current_resistance = resistance
         self.current_experience = self.initial_experience
@@ -109,13 +238,35 @@ class Archer:
         self.used_resistance = 0
 
     def add_lucky_game(self):
+        """
+        Aumenta la cantidad de juegos en los que ha sido el más afortunado
+        """
         self.quantity_luckiest_games += 1
 
     def add_experienced_game(self):
+        """
+        Aumenta la cantidad de juegos en los que ha sido el que más experiencia ha ganado
+        """
         self.quantity_experienced_games += 1
 
 
 class Team:
+    """
+    Representa un equipo de arqueros participante en el torneo.
+    
+    Atributos:
+        name (str): Nombre del equipo.
+        archers (list[Archer]): Lista de arqueros.
+        total_points (int): Puntos totales del equipo.
+        total_special_shots (int): Tiros especiales realizados.
+        puntuations (list[PuntuationTeam]): Puntuaciones por ronda.
+        special_archer (Archer): Actual arquero especial del equipo de la ronda.
+        quantity_games_won (int): Juegos ganados.
+        points_by_round (list): Puntos por ronda.
+        special_shots_by_game (list): Tiros especiales por juego.
+        experience_by_game (list): Experiencia obtenida por juego.
+        repeated_special_archer (int): Veces que el arquero especial se repite.
+    """
     def __init__(self, name: str):
         self.name = name
         self.archers: list[Archer] = []
@@ -130,6 +281,12 @@ class Team:
         self.repeated_special_archer = 0
 
     def add_archer(self, archer: Archer):
+        """
+        Agrega un arquero al equipo
+        
+        Args:
+            archer (Archer): Arquero a añadir al equipo
+        """
         self.archers.append(archer)
 
     def add_special_shot_game(self, game: int):
@@ -222,13 +379,14 @@ class Team:
 
 
 class Round:
-    def __init__(self, id: int, game: int):
+    def __init__(self, id: int, game: int, values:Values):
         self.id = id
         self.game_id = game
         self.isATiedRound = False
         self.best_archer: dict = None
         self.best_team: dict = None
         self.luckiest_archer: dict = None
+        self.values = values
 
     def execute(self, teams: list[Team]):
         self.make_shots(teams)
@@ -238,12 +396,14 @@ class Round:
         self.define_winning_archer(teams)
         self.save_team_points(teams)
         self.restore_values(teams)
+        #self.show_results()
 
-        # print(f"Ronda {self.id}:")
-        # if self.best_team:
-        #    print(f"Equipo ganador: {self.best_team[constants.NAME_ATRIBUTE]} / puntos: {self.best_team[constants.PUNTUATION_ATRIBUTE]}")
-        # else:
-        #    print("Ronda empatada")
+    def show_results(self):
+        print(f"Ronda {self.id}:")
+        if self.best_team:
+           print(f"Equipo ganador: {self.best_team[constants.NAME_ATRIBUTE]} / puntos: {self.best_team[constants.PUNTUATION_ATRIBUTE]}")
+        else:
+           print("Ronda empatada")
 
     def save_team_points(self, teams: list[Team]):
         for team in teams:
@@ -255,12 +415,12 @@ class Round:
             for archer in team.archers:
                 if archer.experience_gained() >= 9:
                     archer.reset_round_values(
-                        constants.DEFAULT_EXPERIENCE_TO_SUBSTRACT, norm_random_value()
+                        constants.DEFAULT_EXPERIENCE_TO_SUBSTRACT, self.values.norm_random_value()
                     )
                 else:
                     archer.reset_round_values(
-                        substractConverter.obtain_point(random_value()),
-                        norm_random_value(),
+                        substractConverter.obtain_point(self.values.random_value()),
+                        self.values.norm_random_value(),
                     )
             team.reset_values()
 
@@ -284,22 +444,25 @@ class Round:
     def execute_additional_shots(self, archers: list[Archer], teams: list[Team]):
         for archer in archers:
             points = archer.execute_additional_shot(
-                random_value(), self.game_id, self.id
+                self.values.random_value(), self.game_id, self.id
             )
             team = self.searchTeam(archer.team, teams)
             team.add_points(points)
         self.verify_tie(archers, teams)
 
     def set_winner_archer(self, archer: Archer):
-        archer.add_experience(3)
-        # print(archer)
-        # print(f"arquero: {archer.name}, experiencia: {archer.current_experience}")
+        archer.add_experience(constants.EXPERIENCE_TO_ADD)
+        #self.show_archer_experience(archer)
         self.best_archer = {
             constants.NAME_ATRIBUTE: archer.name,
             constants.PUNTUATION_ATRIBUTE: archer.total_points,
             constants.GENDER: archer.gender,
         }
-
+        
+    def show_archer_experience(self, archer:Archer):
+        print(archer)
+        print(f"arquero: {archer.name}, experiencia: {archer.current_experience}")
+        
     def make_shots(self, teams: list[Team]):
         for team in teams:
             self.make_archers_shots(team)
@@ -317,21 +480,22 @@ class Round:
         self, most_lucky_archers: list[Archer], teams: list[Team], round: int
     ):
         for archer in most_lucky_archers:
-            points = archer.execute_special_shot(random_value())
-            team = self.searchTeam(archer.team, teams)
-            self.validate_additional_shot(team, archer, round)
-            team.add_special_shot()
-            team.add_special_shot_game(self.game_id)
-            team.add_points(points)
+            if archer.luck > 0:
+                points = archer.execute_special_shot(self.values.random_value())
+                team = self.searchTeam(archer.team, teams)
+                self.validate_additional_shot(team, archer, round)
+                team.add_special_shot()
+                team.add_special_shot_game(self.game_id)
+                team.add_points(points)
+            else:
+                print("Suerte negativa")
 
     def validate_additional_shot(self, team: Team, archer: Archer, round: int):
         if team.special_archer:
-            # print(f"{team.special_archer.name}:{archer.name}")
             if team.special_archer.name == archer.name:
-                # print("Jugador especial repetido")
                 team.repeated_special_archer += 1
                 additional_point = archer.execute_additional_shot(
-                    random_value(), self.id, round
+                    self.values.random_value(), self.id, round
                 )
                 team.add_points(additional_point)
             else:
@@ -366,7 +530,7 @@ class Round:
 
     def add_points(self, archer: Archer, team: Team):
         points_archer = archer.execute_normal_shot(
-            random_value(), self.game_id, self.id
+            self.values.random_value(), self.game_id, self.id
         )
         team.add_points(points_archer)
 
@@ -413,7 +577,7 @@ class Round:
 
 
 class Game:
-    def __init__(self, id: int):
+    def __init__(self, id: int, values:Values):
         self.id = id
         self.rounds: list[Round] = []
         self.the_luckiest_archer = None
@@ -425,13 +589,14 @@ class Game:
         self.quantity_of_tied_rounds = 0
         self.female_experience_by_round = []
         self.male_experience_by_round = []
+        self.values = values
 
     def execute(self, teams: list[Team]):
         self.execute_rounds(teams)
 
     def execute_rounds(self, teams: list[Team]):
         for i in range(constants.QUANTITY_OF_ROUNDS):
-            round = Round(i, self.id)
+            round = Round(i, self.id, self.values)
             self.rounds.append(round)
             round.execute(teams)
         self.experience_by_gender(teams)
@@ -631,7 +796,7 @@ class Game:
         for team in teams:
             team.add_experience_game()
             for archer in team.archers:
-                archer.reset_values(norm_random_value(), uniform_value())
+                archer.reset_values(self.values.norm_random_value(), self.values.uniform_value())
             team.reset_game_values()
 
     def experience_by_gender(self, teams: list[Team]):
@@ -675,6 +840,7 @@ class Tournament:
         self.games: list[Game] = []
         self.female_experience_by_round = []
         self.male_experience_by_round = []
+        self.values = Values()
 
     def execute(self):
         self.__assign_team_values()
@@ -704,7 +870,7 @@ class Tournament:
         for i in range(constants.QUANTITY_OF_TEAMS):
             team = Team(f"Equipo {(i+1)}")
             for j in range(constants.QUANTITY_OF_ARCHERS_BY_TEAM):
-                gender = obtain_gender(random_value())
+                gender = obtain_gender(self.values.random_value())
                 points_converter = None
                 if gender == Gender.MALE:
                     points_converter = MalePointsConverter()
@@ -714,8 +880,8 @@ class Tournament:
                     Archer(
                         f"Arquero {(number_archers)}",
                         team.name,
-                        uniform_value(),
-                        norm_random_value(),
+                        self.values.uniform_value(),
+                        self.values.norm_random_value(),
                         gender,
                         points_converter,
                     )
@@ -731,7 +897,7 @@ class Tournament:
                 end="",
                 flush=True,
             )
-            game = Game(i)
+            game = Game(i, self.values)
             self.games.append(game)
             game.execute(self.teams)
             game.acumulate_experience_by_gender(
@@ -798,3 +964,22 @@ class Tournament:
             "Femenino": self.female_experience_by_round,
         }
         return experience
+
+    def archers_by_gender(self):
+        quantities:list[dict] = [
+            {
+                "gender": Gender.MALE,
+                "quantity": 0
+            },
+            {
+                "gender": Gender.FEMALE,
+                "quantity": 0
+            }
+        ]
+        for team in self.teams:
+            for archer in team.archers:
+                if archer.gender == Gender.MALE:
+                    quantities[0]["quantity"]+=1
+                else:
+                    quantities[1]["quantity"]+=1                    
+        return quantities

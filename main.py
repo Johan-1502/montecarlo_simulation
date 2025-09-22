@@ -23,17 +23,15 @@ from matplotlib.figure import Figure
 import matplotlib
 import numpy as np
 from matplotlib.ticker import MaxNLocator
-
+import threading
 
 matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-
 class MyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.tournament = Tournament()
         self.execution_time = 0
         self.execute_tournament()
         self.setWindowTitle("Arquersim")
@@ -42,6 +40,12 @@ class MyWindow(QMainWindow):
 
         # ---- HEADER ----
         header_widget = self.create_header()
+
+        initial_val_widget = QWidget()
+        initial_layout = QHBoxLayout(initial_val_widget)
+        table_gender = self.archers_by_gender()
+        initial_layout.addWidget(table_gender)
+        
 
         # -----Primer fila de componentes----
         row1_widget = self.create_first_row()
@@ -140,6 +144,7 @@ class MyWindow(QMainWindow):
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
         main_layout.addWidget(header_widget)
+        main_layout.addWidget(initial_val_widget)
         main_layout.addWidget(statistics_content)
         main_layout.addWidget(table_games)
         main_layout.addWidget(canvas)
@@ -147,7 +152,7 @@ class MyWindow(QMainWindow):
         main_layout.addWidget(canvas3)
         main_layout.addStretch()
 
-        main_widget.setMinimumSize(1600, 3000)
+        main_widget.setMinimumSize(1600, 3400)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -198,6 +203,7 @@ class MyWindow(QMainWindow):
         table_layout.addWidget(title_table)
 
         table_content = QTableWidget()
+        table_content.setFixedHeight(400)
         header = table_content.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         table_content.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -436,27 +442,163 @@ class MyWindow(QMainWindow):
         table_content.setFocusPolicy(Qt.NoFocus)
         return table
 
+    def archers_by_gender(self):
+        table = QWidget()
+        table.setFixedSize(560, 240)
+        table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        table_layout = QVBoxLayout(table)
+        table.setStyleSheet(
+            """
+            background-color: #0F1730;
+            color: lightgray;
+            border-radius: 20px;
+        """
+        )
+
+        title_table = QLabel("Cantidad de arqueros por género")
+        title_table.setStyleSheet(
+            """
+            font-family: Arial, sans-serif;
+            background: none;
+            color: #9AA5B3;
+            font-size: 22px;
+            font-weight: bold;
+            padding: 10px 10px 10px 5px;
+        """
+        )
+        table_layout.addWidget(title_table)
+
+        table_content = QTableWidget()
+        header = table_content.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        table_content.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        table_content.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+        table_content.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        table_content.verticalHeader().setVisible(False)
+        table_layout.addWidget(table_content)
+
+        table_content.setColumnCount(2)
+        table_content.setHorizontalHeaderLabels(["Género", "Cantidad de arqueros"])
+
+        archers_by_gender = self.tournament.archers_by_gender()
+        quantity_of_games = len(archers_by_gender)
+        table_content.setRowCount(quantity_of_games)
+
+        for r in range(quantity_of_games):
+            for c in range(2):
+                item = None
+                if c == 0:
+                    item = QTableWidgetItem(str(archers_by_gender[r]["gender"].value))
+                if c == 1:
+                    item = QTableWidgetItem(str(archers_by_gender[r]["quantity"]))
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                table_content.setItem(r, c, item)
+
+        table_content.setShowGrid(False)
+        table_content.setStyleSheet(
+            """
+            QTableView {
+                background-color: transparent;
+                border: none;
+                color: lightgray;
+                font-size: 20px;
+            }
+            QTableView::item {
+                border-bottom: 1px solid #E6EEF6;
+                padding: 8px;
+            }
+            QHeaderView::section {
+                background: #0F1730;
+                color: #9AA5B3;
+                font-weight: bold;
+                font-size:30px;
+                padding: 6px;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #0F1730;
+                width: 14px;
+                margin: 15px 0 15px 0;
+                border-radius: 7px;
+            }
+            QScrollBar::handle:vertical {
+                background: #3C4A6E;
+                min-height: 30px;
+                border-radius: 7px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #5A6E99;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                background: none;
+                border: none;
+                height: 0px;
+            }
+            QScrollBar:horizontal {
+                background: #0F1730;
+                height: 14px;
+                margin: 0 15px 0 15px;
+                border-radius: 7px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #3C4A6E;
+                min-width: 30px;
+                border-radius: 7px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #5A6E99;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                background: none;
+                border: none;
+                width: 0px;
+            }
+        """
+        )
+        table_content.clearSelection()
+        try:
+            table_content.setCurrentCell(-1, -1)
+        except Exception:
+            pass
+        table_content.setFocusPolicy(Qt.NoFocus)
+        return table
+
     def execute_tournament(self):
         print("Ejecución iniciada")
         start_time = time.time()
+        stop_flag = {"stop": False}
 
+        # Lanzamos el hilo
+        thread = threading.Thread(target=mostrar_tiempo, args=(start_time, stop_flag))
+        thread.start()
+        
+        self.tournament = Tournament()
         self.tournament.execute()
+
+        stop_flag["stop"] = True
+        thread.join()
 
         end_time = time.time()
         execution_time = end_time - start_time
-        self.execution_time = execution_time
+        hours, rem = divmod(execution_time, 3600)
+        minutes, seconds = divmod(rem, 60)
+        tiempo_formateado = f"{int(hours):02}:{int(minutes):02}:{seconds:05.2f}"
+        #first_part = tiempo_formateado.split(".")[0]
+        #second_part = tiempo_formateado.split(".")[1]
+        
+        
+        self.execution_time = tiempo_formateado
         print(execution_time)
-        tiempo_formateado = str(timedelta(seconds=execution_time))
         print(f"\nTiempo de ejecución: {tiempo_formateado}")
-        print(
-            f"\nSe procesaron en promedio {math.trunc(constants.QUANTITY_OF_GAMES/execution_time)} juegos por segundo es decir {math.trunc(constants.QUANTITY_OF_GAMES/execution_time)*constants.QUANTITY_OF_ROUNDS} rondas por segundo"
-        )
+
         print("Ejecución terminada")
         print(
-            f"cantidad de tiros especiales repetidos equipo 1: {self.tournament.teams[0].repeated_special_archer}"
+            f"cantidad de veces con arquero especial repetido equipo 1: {self.tournament.teams[0].repeated_special_archer}"
         )
         print(
-            f"cantidad de tiros especiales repetidos equipo 2: {self.tournament.teams[1].repeated_special_archer}"
+            f"cantidad de veces con arquero especial repetido equipo 2: {self.tournament.teams[1].repeated_special_archer}"
         )
 
     def create_header(self):
@@ -530,8 +672,9 @@ class MyWindow(QMainWindow):
 
         time_component = create_component(
             "Tiempo total de simulación",
-            f"{self.execution_time:.2f} s",
-            f"{math.trunc(constants.QUANTITY_OF_GAMES/self.execution_time)} juegos/segundo",
+            self.execution_time,
+            #f"{self.execution_time:.2f} s",
+            None,
             150,
             540,
         )
@@ -539,6 +682,11 @@ class MyWindow(QMainWindow):
 
         return row1_widget
 
+def mostrar_tiempo(start_time, stop_flag):
+    while not stop_flag["stop"]:
+        elapsed = time.time() - start_time
+        print(f"Tiempo transcurrido: {elapsed:.1f} s", end="\r") 
+        time.sleep(0.1) 
 
 class TiedRoundsPieChart(QWidget):
     def __init__(self, tied_rounds, total_rounds, parent=None):
@@ -844,17 +992,18 @@ def create_component(
     )
     layout.addWidget(central_component)
 
-    bottom_component = QLabel(bottom_text)
-    bottom_component.setStyleSheet(
+    if bottom_text:
+        bottom_component = QLabel(bottom_text)
+        bottom_component.setStyleSheet(
+            """
+            font-family: Arial, sans-serif;
+            background: none;
+            color: #9AA5B3;
+            font-size: 21px;
+            padding: 0px 10px 10px 5px;
         """
-        font-family: Arial, sans-serif;
-        background: none;
-        color: #9AA5B3;
-        font-size: 21px;
-        padding: 0px 10px 10px 5px;
-    """
-    )
-    layout.addWidget(bottom_component)
+        )
+        layout.addWidget(bottom_component)
 
     return component
 

@@ -1,21 +1,28 @@
-from random_numbers_library.Random import Random
+from random_library.Random import Random
+import constants
+import math
 
 deviation = 1
 medium = 1.5
 min_value = 25
 max_value = 45
 random = Random()
-#uniform_values = random.uniform(min_value, max_value, 300000, True)
-#normal_values = random.normal(medium, deviation, 3000000)
 
+quantity_unif_values = math.trunc(constants.QUANTITY_OF_GAMES*constants.QUANTITY_OF_ROUNDS + (constants.QUANTITY_OF_GAMES*constants.QUANTITY_OF_ROUNDS)*0.20)
+quantity_norm_values = constants.QUANTITY_OF_TEAMS*constants.QUANTITY_OF_ARCHERS_BY_TEAM*quantity_unif_values
 
-def random_value():
-    return random.random()
-    
-def norm_random_value():
-    return random.normal(medium, deviation)
-#    return normal_values.pop()
+class Values:
+    def __init__(self):
+        self.uniform_values = random.uniform(min_value, max_value, quantity_unif_values, True)
+        self.normal_values = random.normal(medium, deviation, quantity_norm_values)
 
-def uniform_value():
-    return random.uniform(min_value, max_value, integer=True)
-#    return uniform_values.pop()
+    def random_value(self):
+        return random.random()
+        
+    def norm_random_value(self):
+    #    return random.normal(medium, deviation)
+        return self.normal_values.pop()
+
+    def uniform_value(self):
+    #    return random.uniform(min_value, max_value, integer=True)
+        return self.uniform_values.pop()
