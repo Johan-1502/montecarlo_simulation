@@ -12,9 +12,9 @@ Random — envoltura (facade) para generación de números pseudoaleatorios.
 
 import time
 import math
-from random_numbers_library.generators.Congruences import LinealCongruence
-from random_numbers_library.distributions.Distributions import UniformDistribution, NormalDistribution
-from random_numbers_library.generators.test.RandomTest import RandomTestFacade
+from random_library.generators.Congruences import LinealCongruence
+from random_library.distributions.Distributions import UniformDistribution, NormalDistribution
+from random_library.generators.test.RandomTest import RandomTestFacade
 
 
 class Random:
