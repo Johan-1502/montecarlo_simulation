@@ -480,7 +480,7 @@ class MyWindow(QMainWindow):
         table_layout.addWidget(table_content)
 
         table_content.setColumnCount(2)
-        table_content.setHorizontalHeaderLabels(["Género", "Cantidad de arqueros"])
+        table_content.setHorizontalHeaderLabels(["Género", "# Arqueros"])
 
         archers_by_gender = self.tournament.archers_by_gender()
         quantity_of_games = len(archers_by_gender)
@@ -712,15 +712,25 @@ class TiedRoundsPieChart(QWidget):
         etiquetas = ["Empatadas", "No empatadas"]
         colores = ["skyblue", "lightcoral"]
 
-        # Gráfico circular
-        ax.pie(
+        # Gráfico circular (sin labels)
+        wedges, texts, autotexts = ax.pie(
             valores,
-            labels=etiquetas,
+            labels=None,  # No mostrar etiquetas en el gráfico
             autopct="%1.1f%%",
             colors=colores,
             startangle=90,
             explode=(0.05, 0),
-            shadow=True,
+        )
+
+        # Añadir leyenda debajo del gráfico
+        ax.legend(
+            wedges,
+            etiquetas,
+            loc="lower center",
+            bbox_to_anchor=(0.5, -0.1),
+            fontsize=12,
+            ncol=2,
+            frameon=False,
         )
 
         ax.set_title("Porcentaje de rondas empatadas vs no empatadas")
